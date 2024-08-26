@@ -18,12 +18,7 @@ public class DataController {
 
     @GetMapping("/items")
     public List<MockData> getItems(@RequestParam("ids") String idString) {
-        // AOP 어드바이스에서 idRequest 객체의 ids 리스트가 이미 가공됨
-        List<Long> ids = Arrays.stream(idString.split(","))
-                .map(Long::valueOf)
-                .toList();
-
-        return dataService.getDataByIds(ids);
+        return dataService.getDataByIds(idString);
     }
 
 }

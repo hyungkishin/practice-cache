@@ -5,7 +5,9 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import lombok.Builder;
 import lombok.Getter;
+import org.hibernate.annotations.AttributeAccessor;
 
 @Entity
 @Getter
@@ -19,4 +21,15 @@ public class MockData {
     private String peopleName;
 
     private Integer age;
+
+    public MockData() {
+    }
+
+    // ME : TEST 코드를 위해 임시로 작성한 생성자
+    public MockData(Long id, String peopleName, Integer age) {
+        this.id = id;
+        this.peopleName = peopleName;
+        this.age = age;
+    }
+
 }
