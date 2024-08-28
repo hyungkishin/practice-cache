@@ -3,6 +3,7 @@ package com.example.cachepractice.ui;
 import com.example.cachepractice.application.DataService;
 import com.example.cachepractice.domain.MockData;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
