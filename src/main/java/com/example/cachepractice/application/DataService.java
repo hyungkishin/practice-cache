@@ -3,7 +3,6 @@ package com.example.cachepractice.application;
 import com.example.cachepractice.domain.MockData;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
@@ -14,7 +13,7 @@ import java.util.stream.Collectors;
 @Service
 public class DataService {
 
-    private final MockDataRepository mockDataRepository;
+    private final com.example.cachepractice.application.MockDataRepository mockDataRepository;
 
     @Cacheable(value = "dataCache", key = "#ids")
     public List<MockData> getDataByIds(String ids) {

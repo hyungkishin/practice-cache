@@ -5,16 +5,15 @@ import lombok.RequiredArgsConstructor;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Pointcut;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 @Aspect
@@ -27,7 +26,11 @@ public class CacheAspect {
 
     private final RedisTemplate<String, Object> redisTemplate;
 
-    @Around("execution(* com.example.cachepractice.ui.DataController.getItems(..)) && args(idString)")
+
+    @Pointcut("@annotation(com.example.cachepractice.annotation.Cached)")
+    public void cachedMethod() {}
+
+    @Around("cachedMethod() && args(idString)")
     public Object sortIdsBeforeProcessing(ProceedingJoinPoint joinPoint, String idString) throws Throwable {
         String sortedIds = Arrays.stream(idString.split(DELIMITER))
                 .map(String::trim)
@@ -35,11 +38,11 @@ public class CacheAspect {
                 .sorted()
                 .map(Object::toString)
                 .collect(Collectors.joining(DELIMITER));
-;
+
         return joinPoint.proceed(new Object[]{sortedIds});
     }
 
-    @Around("execution(* com.example.cachepractice.application.DataService.getDataByIds(..)) && args(sortedIds)")
+    @Around("cachedMethod() && args(sortedIds)")
     public Object checkRedisBeforeService(ProceedingJoinPoint joinPoint, String sortedIds) throws Throwable {
         // ID 리스트 파싱
         List<Long> idList = Arrays.stream(sortedIds.split(DELIMITER))
