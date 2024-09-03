@@ -7,6 +7,7 @@ import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.springframework.data.redis.core.RedisTemplate;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -16,16 +17,16 @@ import java.util.stream.Collectors;
 
 @Aspect
 @RequiredArgsConstructor
-public class CacheAspect {
+public class CacheAspect<T> {
 
     private static final String REDIS_DATA_KEY_PREFIX = "data:";
-
     private static final String DELIMITER = ",";
 
     private final RedisTemplate<String, Object> redisTemplate;
 
     @Around("@annotation(com.example.cachepractice.annotation.Cached) && args(idString)")
-    public Object sortIdsBeforeProcessing(ProceedingJoinPoint joinPoint, String idString) throws Throwable {
+    public Object checkRedisBeforeService(ProceedingJoinPoint joinPoint, String idString) throws Throwable {
+        // ID 문자열 정렬
         String sortedIds = Arrays.stream(idString.split(DELIMITER))
                 .map(String::trim)
                 .map(Long::parseLong)
@@ -33,31 +34,24 @@ public class CacheAspect {
                 .map(Object::toString)
                 .collect(Collectors.joining(DELIMITER));
 
-        return joinPoint.proceed(new Object[]{sortedIds});
-    }
-
-    @Around("@annotation(com.example.cachepractice.annotation.Cached) && args(sortedIds)")
-    public Object checkRedisBeforeService(ProceedingJoinPoint joinPoint, String sortedIds) throws Throwable {
         // ID 리스트 파싱
         List<Long> idList = Arrays.stream(sortedIds.split(DELIMITER))
                 .map(Long::parseLong)
                 .collect(Collectors.toList());
 
         // Redis에서 데이터 조회
-        Map<Long, MockData> cachedDataMap = getCachedDataFromRedis(idList);
-        List<MockData> cachedData = new ArrayList<>(cachedDataMap.values());
+        Map<Long, T> cachedDataMap = getCachedDataFromRedis(idList);
+        List<T> cachedData = new ArrayList<>(cachedDataMap.values());
 
         // 캐시되지 않은 ID 추출
         List<Long> missingIds = idList.stream()
                 .filter(id -> !cachedDataMap.containsKey(id))
-                .toList();
+                .collect(Collectors.toList());
 
         // 캐시되지 않은 ID가 있으면 DB 조회
         if (!missingIds.isEmpty()) {
-            String missingIdsStr = missingIds.stream()
-                    .map(Object::toString)
-                    .collect(Collectors.joining(DELIMITER));
-            List<MockData> dbData = (List<MockData>) joinPoint.proceed(new Object[]{missingIdsStr});
+            String missingIdsStr = joinIds(missingIds);
+            List<T> dbData = (List<T>) joinPoint.proceed(new Object[]{missingIdsStr});
 
             // 조회된 데이터를 Redis에 캐싱
             cacheDataToRedis(dbData);
@@ -69,19 +63,35 @@ public class CacheAspect {
         return cachedData;
     }
 
-    private Map<Long, MockData> getCachedDataFromRedis(List<Long> ids) {
+    private Map<Long, T> getCachedDataFromRedis(List<Long> ids) {
         return ids.stream()
                 .map(id -> redisTemplate.opsForValue().get(REDIS_DATA_KEY_PREFIX + id))
                 .filter(Objects::nonNull)
-                .map(data -> (MockData) data)
-                .collect(Collectors.toMap(MockData::getId, data -> data));
+                .map(data -> (T) data)
+                .collect(Collectors.toMap(this::getIdFromObject, data -> data));
     }
 
-    private void cacheDataToRedis(List<MockData> data) {
-        data.forEach(mockData -> {
-            String key = REDIS_DATA_KEY_PREFIX + mockData.getId();
-            redisTemplate.opsForValue().set(key, mockData);
+    private void cacheDataToRedis(List<T> data) {
+        data.forEach(item -> {
+            String key = REDIS_DATA_KEY_PREFIX + getIdFromObject(item);
+            redisTemplate.opsForValue().set(key, item);
         });
+    }
+
+    private String joinIds(List<Long> ids) {
+        return ids.stream()
+                .map(Object::toString)
+                .collect(Collectors.joining(DELIMITER));
+    }
+
+    private Long getIdFromObject(T item) {
+        try {
+            Field field = item.getClass().getDeclaredField("id");
+            field.setAccessible(true);
+            return (Long) field.get(item);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            throw new RuntimeException("Object 에 id 읎다잉", e);
+        }
     }
 
 }
