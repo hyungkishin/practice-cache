@@ -13,14 +13,19 @@ import java.util.stream.Collectors;
 @Service
 public class DataService {
 
-    private final com.example.cachepractice.application.MockDataRepository mockDataRepository;
+    private final MockDataRepository mockDataRepository;
 
     @Cacheable(value = "dataCache", key = "#ids")
     public List<MockData> getDataByIds(String ids) {
-        List<Long> idList = Arrays.stream(ids.split(","))
+        List<Long> idList = parseIds(ids);
+
+        return mockDataRepository.findAllById(idList);
+    }
+
+    private static List<Long> parseIds(String ids) {
+        return Arrays.stream(ids.split(","))
                 .map(Long::parseLong)
                 .collect(Collectors.toList());
-        return mockDataRepository.findAllById(idList);
     }
 
 }
